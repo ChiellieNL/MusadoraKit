@@ -9,6 +9,7 @@ import MediaPlayer
 
 public extension MLibrary {
 
+#if !os(macOS)
   /// Fetch a song from the user's library by using its identifier.
   /// 
   /// - Parameters:
@@ -67,8 +68,38 @@ public extension MLibrary {
       return response.items
     }
   }
+#else
+  /// Fetch a song from the user's library by using its identifier.
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for the song.
+  /// - Returns: `Song` matching the given identifier.
+  ///
+  static func song(id: MusicItemID) async throws -> Song {
+    let request = MLibraryResourceRequest<Song>(matching: \.id, equalTo: id)
+    let response = try await request.response()
 
-#if compiler(>=5.7)
+    guard let song = response.items.first else {
+      throw MusadoraKitError.notFound(for: id.rawValue)
+    }
+    return song
+  }
+
+  /// Fetch all songs from the user's library in alphabetical order.
+  ///
+  /// - Parameters:
+  ///   - limit: The number of songs returned.
+  /// - Returns: `Songs` for the given limit.
+  ///
+  static func songs(limit: Int = 50) async throws -> Songs {
+    var request = MLibraryResourceRequest<Song>()
+    request.limit = limit
+    let response = try await request.response()
+    return response.items
+  }
+#endif
+
+#if compiler(>=5.7) && !os(macOS)
   /// Fetch multiple songs from the user's library by using their identifiers.
   ///
   /// - Parameters:
@@ -83,7 +114,7 @@ public extension MLibrary {
     let response = try await request.response()
     return response.items
   }
-#else
+#elseif compiler(<5.7) || os(macOS)
   static func songs(ids: [MusicItemID]) async throws -> Songs {
     let request = MLibraryResourceRequest<Song>(matching: \.id, memberOf: ids)
     let response = try await request.response()
@@ -169,15 +200,15 @@ public extension MLibrary {
 }
 
 #if compiler(>=5.7)
-@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
-@available(macOS, unavailable)
-@available(macCatalyst, unavailable)
 public extension MLibrary {
   /// Fetch recently added songs from the user's library sorted by the date added.
   ///
   /// - Parameters:
   ///   - limit: The number of songs returned.
   /// - Returns: `Songs` for the given limit.
+  @available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+  @available(macOS, unavailable)
+  @available(macCatalyst, unavailable)
   static func recentlyAddedSongs(limit: Int = 25, offset: Int) async throws -> Songs {
     var request = MusicLibraryRequest<Song>()
     request.limit = limit
@@ -192,6 +223,9 @@ public extension MLibrary {
   /// - Parameters:
   ///   - limit: The number of songs returned.
   /// - Returns: `Songs` for the given limit.
+  @available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+  @available(macOS, unavailable)
+  @available(macCatalyst, unavailable)
   static func recentlyLibraryPlayedSongs(limit: Int = 25, offset: Int) async throws -> Songs {
     var request = MusicLibraryRequest<Song>()
     request.limit = limit
@@ -206,7 +240,7 @@ public extension MLibrary {
   /// - Parameters:
   ///   - limit: The number of songs returned.
   /// - Returns: `Songs` for the given limit.
-  @available(macOS 13.0, *)
+  @available(iOS 16.0, tvOS 16.0, watchOS 9.0, macOS 13.0, *)
   static func recentlyPlayedSongs(limit: Int = 25, offset: Int) async throws -> Songs {
     var request = MusicRecentlyPlayedRequest<Song>()
     request.limit = limit

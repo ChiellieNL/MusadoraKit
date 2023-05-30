@@ -9,13 +9,12 @@ import MediaPlayer
 
 public extension MLibrary {
 
+#if !os(macOS)
   /// Fetch a playlist from the user's library by using its identifier.
   ///
   /// - Parameters:
   ///   - id: The unique identifier for the playlist.
   /// - Returns: `Playlist` matching the given identifier.
-  @available(macOS, unavailable)
-  @available(macCatalyst, unavailable)
   static func playlist(id: MusicItemID) async throws -> Playlist {
     if #available(iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
       var request = MusicLibraryRequest<Playlist>()
@@ -36,8 +35,24 @@ public extension MLibrary {
       return playlist
     }
   }
+#else
+  /// Fetch a playlist from the user's library by using its identifier.
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for the playlist.
+  /// - Returns: `Playlist` matching the given identifier.
+  static func playlist(id: MusicItemID) async throws -> Playlist {
+    let request = MLibraryResourceRequest<Playlist>(matching: \.id, equalTo: id)
+    let response = try await request.response()
 
-#if compiler(>=5.7)
+    guard let playlist = response.items.first else {
+      throw MusadoraKitError.notFound(for: id.rawValue)
+    }
+    return playlist
+  }
+#endif
+
+#if compiler(>=5.7) && !os(macOS)
   /// Fetch all playlists from the user's library in alphabetical order.
   ///
   /// - Parameters:
@@ -51,7 +66,7 @@ public extension MLibrary {
     let response = try await request.response()
     return response.items
   }
-#else
+#elseif compiler(<5.7) || os(macOS)
   static func playlists(limit: Int? = nil) async throws -> Playlists {
     var request = MLibraryResourceRequest<Playlist>()
     request.limit = limit
@@ -60,7 +75,7 @@ public extension MLibrary {
   }
 #endif
 
-#if compiler(>=5.7)
+#if compiler(>=5.7) && !os(macOS)
   /// Fetch multiple playlists from the user's library by using their identifiers.
   ///
   /// - Parameters:
@@ -75,13 +90,12 @@ public extension MLibrary {
     let response = try await request.response()
     return response.items
   }
-#else
+#elseif compiler(<5.7) || os(macOS)
   static func playlists(ids: [MusicItemID]) async throws -> Playlists {
     let request = MLibraryResourceRequest<Playlist>(matching: \.id, memberOf: ids)
     let response = try await request.response()
     return response.items
   }
-}
 #endif
 
 #if compiler(>=5.7)
